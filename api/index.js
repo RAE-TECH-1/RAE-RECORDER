@@ -1,33 +1,42 @@
 const express = require('express');
-const serverless = require('serverless-http');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
+const serverless = require('serverless-http');
 
 const app = express();
-const router = express.Router();
-
 app.use(cors());
 app.use(bodyParser.json());
 
-const supabase = createClient('https://SEU-PROJETO.supabase.co', 'SUA-CHAVE');
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
-router.post('/salvar-historico', async (req, res) => {
-  const { cliente_id, data, plano, observacoes } = req.body;
-  await supabase.from('historico_alimentar').insert({ cliente_id, data, plano, observacoes });
+app.post('/salvar-historico', async (req, res) => {
+  const { cliente_id, data, fase, plano, observacoes } = req.body;
+  const { error } = await supabase
+    .from('historico_alimentar')
+    .insert([{ cliente_id, data, fase, plano, observacoes }]);
+  if (error) return res.status(500).send(error);
   res.send({ status: 'ok' });
 });
 
-router.get('/historico/:cliente_id', async (req, res) => {
+app.get('/historico/:cliente_id', async (req, res) => {
   const { cliente_id } = req.params;
   const { data, error } = await supabase
     .from('historico_alimentar')
     .select('*')
     .eq('cliente_id', cliente_id);
+  if (error) return res.status(500).send(error);
   res.send(data);
 });
 
-app.use('/api/', router);
+app.get('/', (req, res) => {
+  res.send('🚀 API RAE RECORDER ONLINE');
+});
 
+
+// Exportação para uso pela Vercel
 module.exports = app;
 module.exports.handler = serverless(app);
